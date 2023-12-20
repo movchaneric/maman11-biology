@@ -1,6 +1,6 @@
 class Cell:
     # TODO: Add windDirection, humidityLevel, pullutionMeter later on...
-    def __init__(self, x, y, cell_type, wind_direction):
+    def __init__(self, x, y, cell_type):
         self.x = x
         self.y = y
         self.cell_type = cell_type
@@ -66,4 +66,15 @@ class Cell:
         elif self.get_wind_direction() == 'E':
             self.wind_direction = 'W'
 
+    def set_wind_direction(self, direction):
+        self.wind_direction = direction
 
+    def get_wind_direction_icon(self):
+        if self.get_wind_direction() == 'S':
+            return '↓'
+        elif self.get_wind_direction() == 'N':
+            return '↑'
+        elif self.get_wind_direction() == 'E':
+            return '→'
+        elif self.get_wind_direction() == 'W':
+            return '←'
