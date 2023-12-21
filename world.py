@@ -37,7 +37,37 @@ class World:
         
         # print(cell_neighbors)
         return cell_neighbors
+    
+    def update_wind_direction(self, x, y, world_map):
+        # get the cell
+        print('world_map:' , world_map)
+        cell = world_map[x][y]
+        text_tag = f"text_{x}_{y}"
+        rect_tag = f"rect_{x}_{y}"
 
+        self.canvas.delete(text_tag)
+
+        print('Cell OLD direction: ', cell.get_wind_direction())
+        cell.set_reverse_direction()
+        print('Cell NEW direction: ', cell.get_wind_direction())
+        
+        # Update the canvas with the new arrow direction
+        x1 = x * CUBE_SIZE
+        y1 = y * CUBE_SIZE
+        x2 = x1 + CUBE_SIZE
+        y2 = y1 + CUBE_SIZE
+
+        center_x = (x1 + x2) / 2
+        center_y = (y1 + y2) / 2
+
+        wind_direction_icon = cell.get_wind_direction_icon()
+
+        updated_cell_text = f"{cell.get_cell_tempreture()}° {wind_direction_icon}"
+
+        # Update the canvas with the new text
+        self.canvas.create_text(center_x, center_y, text=updated_cell_text, fill='black',
+                                font=('Helvetica', 10, 'bold', 'bold'), tags=f"text_{x}_{y}")
+        
 
     def create_world_map(self):
         self.window = tk.Tk()
@@ -69,7 +99,9 @@ class World:
                 cell = Cell(i, j,file_cell_type) #file_cell_type = 'S' ,...
                 row_cells.append(cell)
 
-                self.canvas.create_rectangle(x1, y1, x2, y2, fill=color, outline="black")
+                # Create a rectangle for the cell with a unique tag
+                rect_tag = f"rect_{i}_{j}"
+                self.canvas.create_rectangle(x1, y1, x2, y2, fill=color, outline="black" , tags=rect_tag)
 
                 # Calculate the center of the cube
                 center_x = (x1 + x2) / 2
@@ -80,9 +112,11 @@ class World:
                 
                 text_to_display = f"{temperature_text}{wind_direction_icon}"
 
-                self.canvas.create_text(center_x, center_y, text=text_to_display, fill='black', font=('Helvetica', 10, 'bold', 'bold'))
+                text_tag = f"text_{i}_{j}"
+                self.canvas.create_text(center_x, center_y, text=text_to_display, fill='black', font=('Helvetica', 10, 'bold', 'bold'), tags=text_tag)
     
             world_map.append(row_cells)
+        self.update_wind_direction(0,1, world_map) #issue because world_map is an empty matrix
         print('world map has been created...')
         self.window.mainloop()
 

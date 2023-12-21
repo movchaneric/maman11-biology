@@ -19,6 +19,9 @@ class Cell:
     def set_tempreture(self, new_temp):
         self.cell_tempreture = new_temp
 
+    def get_cell_tempreture(self):
+        return self.cell_tempreture
+
     def cell_type_init(cell_type):
         if cell_type == 'C':
             return 'city'
