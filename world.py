@@ -2,7 +2,7 @@ import tkinter as tk
 from cell import Cell
 
 GRID_SIZE = 40
-CUBE_SIZE = 25
+CUBE_SIZE = 24
 COLOR_MAP = {
     'S': "#3399FF",   # Sea
     'I': 'white',  # Ice
@@ -14,6 +14,9 @@ COLOR_MAP = {
 class World:   
     def __init__(self):
         self.world_map = []
+        self.refresh_rate = 30 # half a second delay
+        self.curr_gen = 1
+        self.total_num_gen = 365
         self.canvas = None # Initialize canvas
         self.window = None
 
@@ -44,6 +47,7 @@ class World:
         cell = world_map[x][y]
         text_tag = f"text_{x}_{y}"
         rect_tag = f"rect_{x}_{y}"
+        new_temp = self.calc_next_temp(x, y)
 
         self.canvas.delete(text_tag)
 
@@ -62,12 +66,30 @@ class World:
 
         wind_direction_icon = cell.get_wind_direction_icon()
 
-        updated_cell_text = f"{cell.get_cell_tempreture()}° {wind_direction_icon}"
+        updated_cell_text = f"{new_temp}° {wind_direction_icon}"
 
         # Update the canvas with the new text
         self.canvas.create_text(center_x, center_y, text=updated_cell_text, fill='black',
                                 font=('Helvetica', 10, 'bold', 'bold'), tags=f"text_{x}_{y}")
-        
+    
+    # Set next gen to get the result of the next step
+    def calc_next_gen(self):
+        self.curr_gen += 1
+        self.update_next_temp()
+        self.window.after(self.refresh_rate, self.calc_next_gen)
+
+    def calc_next_temp(self, x, y):
+        if self.curr_gen <= self.total_num_gen:
+            curr_cell_neighbors = self.get_neighbors(x, y, self.world_map) #array of neighbors of current cell
+            new_cell_temp = 0
+
+            for cell in curr_cell_neighbors:
+                new_cell_temp += cell.get_cell_tempreture()
+            
+            new_cell_temp /= len(curr_cell_neighbors)
+
+            #return new cell temp after getting its neighbors
+            return new_cell_temp   
 
     def create_world_map(self):
         self.window = tk.Tk()
@@ -81,8 +103,6 @@ class World:
         #Get the content of the file 'earth.dat'
         with open('earth.dat', 'r') as file:
             file_content = file.read().replace('\n', '')
-
-        world_map = []
 
         for i in range(GRID_SIZE):
             row_cells = []
@@ -115,10 +135,9 @@ class World:
                 text_tag = f"text_{i}_{j}"
                 self.canvas.create_text(center_x, center_y, text=text_to_display, fill='black', font=('Helvetica', 10, 'bold', 'bold'), tags=text_tag)
     
-            world_map.append(row_cells)
-        self.update_wind_direction(0,1, world_map) #issue because world_map is an empty matrix
+            self.world_map.append(row_cells)
+
         print('world map has been created...')
-        self.window.mainloop()
 
 
 
