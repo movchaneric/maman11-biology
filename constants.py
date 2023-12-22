@@ -1,0 +1,3 @@
+
+GRID_SIZE = 40
+CUBE_SIZE = 24
