@@ -16,9 +16,9 @@ class World:
 
     def __init__(self):
         self.world_map: List[List[Cell]] = list()
-        self.refresh_rate = 1000 # in ms
+        self.refresh_rate = 300 # in ms
         self.curr_gen = 1
-        self.total_num_gen = 365
+        self.total_num_gen = 100
         self.canvas = None # Initialize canvas
         self.window = None
         self.world_size = consts.GRID_SIZE
@@ -28,7 +28,6 @@ class World:
     def get_cell_by_coordinate(self, x: int, y: int) -> Cell:
         return self.world_map[y][x]
     
-
     def draw_next_gen_canvas(self):
         #Get the content of the file 'earth.dat'
         with open('earth.dat', 'r') as file:
@@ -40,8 +39,9 @@ class World:
                 row_cells = []
                 for j in range(GRID_SIZE):
                     file_cell_type = file_content[j * GRID_SIZE + i]
+                    color = cp.COLOR_MAP[file_cell_type]
                     
-                    cell = Cell(j, i,file_cell_type)
+                    cell = Cell(j, i,file_cell_type, color)
                     row_cells.append(cell)    
                 self.world_map.append(row_cells)    
         #exists => remove canvas to redraw                     
@@ -50,9 +50,14 @@ class World:
             
         for row in range(GRID_SIZE):
             for col in range(GRID_SIZE):
-                file_cell_type = file_content[col * GRID_SIZE + row]
-                color = cp.COLOR_MAP[file_cell_type]
-
+                # file_cell_type = file_content[col * GRID_SIZE + row]
+                # color = cp.COLOR_MAP[file_cell_type] #update color depends on the temp 
+                
+                # cell = self.world_map[row][col]
+                # color = cell.color
+                cell = self.update_cell_color(row, col)
+                color = cell.color
+                
                 x1 = row * CUBE_SIZE
                 y1 = col * CUBE_SIZE
                 x2 = x1 + CUBE_SIZE
@@ -77,6 +82,22 @@ class World:
                 
                 self.canvas.create_text(center_x, center_y, text=text_to_display, fill='black',
                                         font=('Helvetica', 10, 'bold', 'bold'), tags=text_tag)
+    
+    def update_cell_color(self, row: int, col: int) -> Cell:
+        cell = self.world_map[row][col]
+        
+        type = cell.type
+        temp = cell.tempreture
+        
+        if (type == 'C' or type == 'L') and temp > cp.CELL_TYPE_TO_TEMPERATURE_DICT['G']:
+                    cell.color = cp.COLOR_MAP['G']
+        elif type == 'I' and temp > cp.CELL_TYPE_TO_TEMPERATURE_DICT['S']:
+            cell.color = cp.COLOR_MAP['S']
+        elif type == 'S' and temp > cp.CELL_TYPE_TO_TEMPERATURE_DICT['L']:
+            cell.color = cp.COLOR_MAP['L']    
+        
+        return cell    
+                    
                   
     #Get neighbors of a specific cell
     #return an array of Cell neighbors
@@ -127,6 +148,13 @@ class World:
         self.canvas.create_text(center_x, center_y, text=updated_cell_text, fill='black',
                                 font=('Helvetica', 10, 'bold', 'bold'), tags=f"text_{x}_{y}")
     
+    
+    def init_pollution_to_city_cells(self):
+        for row in self.world_map:
+            for cell in row:
+                if cell.type == 'C':
+                    cell.pollution += 2
+    
     # get cell neighbor correspond to wind direction
     def get_neighbor_cell_by_wind(self, c: Cell) -> Optional[Cell]:
 
@@ -142,28 +170,52 @@ class World:
        return None
 
 
-    def calc_next_gen_temp(self):
+    def passed_pollution_limit(self, c: Cell) -> bool:
+        return c.pollution % 10 == 0 and c.pollution >= 10
 
+
+    def calc_next_gen_temp(self):
+        #create a temp map 
         next_gen_map: List[List[Cell]] = \
             [[None for j in range(GRID_SIZE)] for i in range(GRID_SIZE)]
+            
         for row in range(GRID_SIZE):
             for col in range(GRID_SIZE):
-                cell = self.world_map[row][col]
-                next_gen_map[row][col] = deepcopy(cell)
-                curr_cell_is_city: bool = cell.cell_type == 'C'
-
+                cell = self.world_map[row][col] 
+                next_gen_map[row][col] = deepcopy(cell)                
+                
+                curr_cell_is_city: bool = cell.type == 'C'
+                    
                 affected_cell = \
                     deepcopy(self.get_neighbor_cell_by_wind(cell)) if curr_cell_is_city else None
 
                 if affected_cell:
-                    # affected_cell = self.create_copy_of_cell(neighbor_cell) if neighbor_cell is not None else None
-                    # if affected_cell is not None:
-                    affected_cell.tempreture += 1
+                    if self.passed_pollution_limit(affected_cell):
+                        affected_cell.tempreture += 1 
+                    
+                    affected_cell.pollution += 2   
+                    
                     next_gen_map[affected_cell.y][affected_cell.x] = affected_cell
-
+                
+                elif curr_cell_is_city:
+                    cell.pollution += 2
+                    
+                                      
+    #increase city cell pollution on every generation by 2 and increase temp every 10 degress 10, 20 , 30 ,....
+        for row in range(GRID_SIZE):
+            for col in range(GRID_SIZE):
+                cell = self.world_map[col][row]
+                
+                if cell.type == 'C' and self.passed_pollution_limit(cell):
+                    cell.tempreture += 1
+                    
+                elif curr_cell_is_city:
+                    cell.pollution += 2
+     
+                
         self.world_map = next_gen_map
-    
-            
+
+                  
     def update_canvas(self):
         if self.curr_gen > self.total_num_gen:
             return
@@ -172,13 +224,13 @@ class World:
             self.calc_next_gen_temp()
 
         self.draw_next_gen_canvas()
+
         self.curr_gen += 1
             
-        self.window.title(f"Cellular Automaton World Simulation: Generation {self.curr_gen}")    
+        self.window.title(f"Cellular Automaton World Simulation: Generation {self.curr_gen}")   
         self.window.after(self.refresh_rate, self.update_canvas)
             
-
-
+            
     def create_world_map(self):
         self.window = tk.Tk()
         self.window.title(f"Cellular Automaton World Simulation: Generation {self.curr_gen}")
@@ -189,7 +241,7 @@ class World:
         self.canvas.pack()
 
         self.draw_next_gen_canvas()
-        self.print_index()
+        self.init_pollution_to_city_cells() 
 
         # Schedule the initial call to draw_canvas after a delay
         self.window.after(self.refresh_rate, self.update_canvas)
@@ -201,7 +253,15 @@ class World:
 
 
 
-    #  ----------- TEST -----------
+
+
+
+
+
+
+
+
+    #  ----------- PRINT TESTS -----------
     def test_print_matrix(self, world_map):
             for row in world_map:
                 for cell in row:
@@ -215,3 +275,13 @@ class World:
             for cell in row:
                 print(f"[{cell.y}][{cell.x}]", end =" ")
             print('\n')
+            
+    def test_cell_pollution(self):
+        for row in self.world_map:
+            for cell in row:
+                print(f"[{cell.y}][{cell.x}] , Pol: {cell.pollution} , temp: {cell.tempreture}|", end =" ")
+            print('\n')
+    
+    def print_specific_cell_pollution_and_temp(self, x: int, y:int, world_map):
+        cell = world_map[y][x]
+        print(f"cell Temp: {cell.tempreture} | Pollution: {cell.pollution}" )
