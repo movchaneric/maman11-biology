@@ -1,9 +1,9 @@
 CELL_TYPE_TO_TEMPERATURE_DICT = {
      'C': 25,
      'S': 15,
-     'L': 20,
-     'I': -10,
-     'G': 40
+     'L': 30,
+     'I': -5,
+     'G': 45
 }
 
 CELL_TYPE_TO_WIND_DIRECTION_DICT = {
@@ -37,8 +37,9 @@ CELL_WIND_DIRECTION_TO_AXIS_VALUE_DICT = {
 
 COLOR_MAP = {
     'S': "#3399FF",   # Sea
-    'I': 'white',  # Ice
-    'G': '#D2B48C',  # Ground (Light brown)
-    'C': 'yellow', # City
-    'L': "#009900"   # Land
+    'I': 'white',     # Ice
+    'G': '#D2B48C',   # Ground (Light brown)
+    'C': 'yellow',    # City
+    'L': "#009900",   # Land
+    'U': '#FFA500'    # Orange - unhabitable
 }
