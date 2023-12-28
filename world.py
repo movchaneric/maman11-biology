@@ -32,6 +32,9 @@ class World:
     def get_cell_by_coordinate(self, x: int, y: int) -> Cell:
         return self.world_map[y][x]
     
+    def set_clouds(self) -> str:
+        options = ['Clouds', 'None']
+        return random.choice(options)
     
     def init_map_matrix(self, file_content):
         for i in range(GRID_SIZE):
@@ -77,14 +80,15 @@ class World:
                 cell = self.world_map[cell.y][cell.x]
                 
                 temperature_text = f"{cell.tempreture}°"
-                wind_direction_icon = cp.CELL_WIND_DIRECTION_TO_ICON_DICT[cell.wind_direction]
+                # wind_direction_icon = cp.CELL_WIND_DIRECTION_TO_ICON_DICT[cell.wind_direction]
 
                 # text_to_display = f"{temperature_text}{wind_direction_icon}"
                 text_to_display = f"{temperature_text}"
+                font_color = "dark green" if cell.tempreture > cell.prev_temperature else ("red" if cell.tempreture < cell.prev_temperature else "black")
                 
                 text_tag = f"text_{cell.x}_{cell.y}"
                 
-                self.canvas.create_text(center_x, center_y, text=text_to_display, fill='black', font=('Helvetica', 9, 'bold', 'bold'), tags=text_tag)
+                self.canvas.create_text(center_x, center_y, text=text_to_display, fill=font_color, font=('Helvetica', 9, 'bold', 'bold'), tags=text_tag)
           
 
     def init_pollution_to_city_cells(self, pollution_factor):
@@ -109,10 +113,11 @@ class World:
 
   
     def passed_pollution_limit(self, c: Cell) -> bool:
-        return c.pollution % 10 == 0 and c.pollution >= 10
+        return abs(c.pollution % 10) == 0 and c.pollution >= 10
+    
     
     def passed_pollution_decrease_limit(self, c: Cell) -> bool:
-        return c.pollution % 10 == 2 and abs(c.pollution) > 0
+        return abs(c.pollution % 20) == 0 and abs(c.pollution) > 0
     
     # CURRENTLY NOT USING
     def control_temperature_change_by_pollution(self, cell: Cell) -> int:
@@ -128,7 +133,7 @@ class World:
             else:
                 return 1
     
-    
+
     def calc_next_gen_temp(self): 
         next_gen_map: List[List[Cell]] = [[None for j in range(GRID_SIZE)] for i in range(GRID_SIZE)] #create a temp map 
             
@@ -142,62 +147,56 @@ class World:
                 
                 # city cell pointing to the cell that the wind directing to
                 if affected_cell:
-                    
-                    if self.pollution_factor > 0 and affected_cell.rain > 0:   
-                        self.choose_rand_option(affected_cell, next_gen_map)
-                    
-                    if self.pollution_factor > 0: 
-                        if self.passed_pollution_limit(affected_cell):
-                            affected_cell.tempreture += 1     
+                    if self.pollution_factor > 0:
+                        if affected_cell.rain > 0:
+                                if self.passed_pollution_decrease_limit(affected_cell):
+                                    affected_cell.tempreture -= 1     
                             
-                        affected_cell.pollution += self.pollution_factor 
+                                affected_cell.pollution -= self.pollution_factor 
+                                next_gen_map[affected_cell.y][affected_cell.x] = affected_cell 
+                        else:
+                            self.choose_rand_option(affected_cell, next_gen_map)
                         
-                        next_gen_map[affected_cell.y][affected_cell.x] = affected_cell 
-                    
                     #pollution is stable
                     elif self.pollution_factor == 0: 
-                        affected_cell.tempreture = round(random.uniform(-2, 1))
-                        
+                        affected_cell.tempreture = round(random.uniform(-1, 1))
                         next_gen_map[affected_cell.y][affected_cell.x] = affected_cell 
                      
                     
-                           
                 # To propagate the pollution use the neighbor of cell
                 neighbor = self.get_neighbor_cell_by_wind(cell)
                 
                 if neighbor:
-                    
-                    if self.pollution_factor > 0 and neighbor.rain > 0:
-                        self.choose_rand_option(neighbor, next_gen_map)
+                    if self.pollution_factor > 0:
+                        if neighbor.rain > 0:
+                                if self.passed_pollution_decrease_limit(neighbor):
+                                    neighbor.tempreture -= 1
+                                    
+                                neighbor.pollution -= self.pollution_factor
+                                next_gen_map[neighbor.y][neighbor.x] = neighbor
+                        else:
+                            self.choose_rand_option(neighbor, next_gen_map)
 
-                    elif self.pollution_factor > 0:
-                        if self.passed_pollution_limit(neighbor):
-                            neighbor.tempreture += 1
-                            
-                        neighbor.pollution += self.pollution_factor
-                    
-                        next_gen_map[neighbor.y][neighbor.x] = neighbor
                         
                     elif self.pollution_factor == 0:
                         neighbor.tempreture += round(random.uniform(-1, 1))
-                        
                         next_gen_map[neighbor.y][neighbor.x] = neighbor
-                          
-                         
+                                                
         self.world_map = next_gen_map
     
     
     def choose_rand_option(self, cell: Cell, next_gen_map):
         option = random.choice([1, 2])
+    
         if option == 1:
             if self.passed_pollution_decrease_limit(cell):
-                            cell.tempreture -= 1            
+                cell.tempreture -= 1            
             cell.pollution -= self.pollution_factor
             next_gen_map[cell.y][cell.x] = cell 
         
         if option == 2:
             if self.passed_pollution_limit(cell):
-                            cell.tempreture += 1            
+                cell.tempreture += 1            
             cell.pollution += self.pollution_factor
             next_gen_map[cell.y][cell.x] = cell 
     
@@ -282,8 +281,7 @@ class World:
         self.window.title(f"Cellular Automaton World Simulation: Generation {self.curr_gen},  Pollution: {self.pollution_factor}")   
         self.window.after(self.refresh_rate, self.update_canvas)
             
-        
-                  
+                
     def create_world_map(self):
         self.window = tk.Tk()
         self.window.title(f"Cellular Automaton World Simulation: Generation {self.curr_gen} , Pollution: {self.pollution_factor}")
