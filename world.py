@@ -2,6 +2,7 @@ import tkinter as tk
 from copy import deepcopy
 from typing import List, Optional
 import random
+import statistics
 
 from cell import Cell
 import constants as consts
@@ -190,7 +191,7 @@ class World:
         option = random.choice([1, 2])
         if option == 1:
             if self.passed_pollution_decrease_limit(cell):
-                            cell.tempreture -= 2            
+                            cell.tempreture -= 1            
             cell.pollution -= self.pollution_factor
             next_gen_map[cell.y][cell.x] = cell 
         
@@ -251,9 +252,24 @@ class World:
         
         return c
 
-    
+
     def update_canvas(self):
         if self.curr_gen > self.total_num_gen:
+            result = self.calculate_statistics()
+        
+            avg_temp, std_dev_temp, avg_pollution, std_dev_pollution = self.calculate_statistics()
+
+            all_temperatures = [cell.tempreture for row in self.world_map for cell in row]
+            all_pollutions = [cell.pollution for row in self.world_map for cell in row]
+
+            normalized_temps = self.normalize_data(all_temperatures, avg_temp, std_dev_temp)
+            normalized_pollutions = self.normalize_data(all_pollutions, avg_pollution, std_dev_pollution)
+
+            self.write_data_to_file("temperature_data.txt", normalized_temps)
+            self.write_data_to_file("pollution_data.txt", normalized_pollutions)
+
+            print('results: ', result)
+    
             return
         
         if self.curr_gen > 1:
@@ -266,6 +282,7 @@ class World:
         self.window.title(f"Cellular Automaton World Simulation: Generation {self.curr_gen},  Pollution: {self.pollution_factor}")   
         self.window.after(self.refresh_rate, self.update_canvas)
             
+        
                   
     def create_world_map(self):
         self.window = tk.Tk()
@@ -288,3 +305,34 @@ class World:
         self.window.mainloop()
 
 
+
+
+#STATISTICS
+    def calculate_statistics(self):
+        total_temp, total_pollution = 0, 0
+        all_temperatures, all_pollutions = [], []
+
+        for row in self.world_map:
+            for cell in row:
+                total_temp += cell.tempreture
+                total_pollution += cell.pollution
+                all_temperatures.append(cell.tempreture)
+                all_pollutions.append(cell.pollution)
+
+        avg_temp = total_temp / (GRID_SIZE * GRID_SIZE)
+        avg_pollution = total_pollution / (GRID_SIZE * GRID_SIZE)
+        std_dev_temp = statistics.pstdev(all_temperatures)
+        std_dev_pollution = statistics.pstdev(all_pollutions)
+
+        return (avg_temp, std_dev_temp, avg_pollution, std_dev_pollution)
+    
+    def write_data_to_file(self, filename, data):
+        """Write data to a file."""
+        with open(filename, 'w') as file:
+            for value in data:
+                file.write(f"{value}\n")
+
+    def normalize_data(self, data, avg, std_dev):
+        """Normalize data."""
+        return [(value - avg) / std_dev for value in data]
+    
