@@ -2,7 +2,7 @@ CELL_TYPE_TO_TEMPERATURE_DICT = {
      'C': 25,
      'S': 15,
      'L': 30,
-     'I': -5,
+     'I': -10,
      'G': 45
 }
 
