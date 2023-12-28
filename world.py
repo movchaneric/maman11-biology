@@ -8,7 +8,7 @@ import constants as consts
 import cell_properties as cp
 
 GRID_SIZE = 40
-CUBE_SIZE = 25
+CUBE_SIZE = 28
 
 # TODO: canvas to __canvas + set init vals in main func
 class World:
@@ -78,15 +78,12 @@ class World:
                 temperature_text = f"{cell.tempreture}°"
                 wind_direction_icon = cp.CELL_WIND_DIRECTION_TO_ICON_DICT[cell.wind_direction]
 
-                text_to_display = f"{temperature_text}{wind_direction_icon}"
-
+                # text_to_display = f"{temperature_text}{wind_direction_icon}"
+                text_to_display = f"{temperature_text}"
+                
                 text_tag = f"text_{cell.x}_{cell.y}"
                 
-                # Set font color based on temperature change
-                font_color = 'black' if cell.tempreture >= cell.prev_temperature else 'red'
-                cell.prev_temperature = cell.tempreture  # Update previous temperature for the next iteration
-                
-                self.canvas.create_text(center_x, center_y, text=text_to_display, fill=font_color, font=('Helvetica', 10, 'bold', 'bold'), tags=text_tag)
+                self.canvas.create_text(center_x, center_y, text=text_to_display, fill='black', font=('Helvetica', 9, 'bold', 'bold'), tags=text_tag)
           
 
     def init_pollution_to_city_cells(self, pollution_factor):
@@ -114,11 +111,14 @@ class World:
         return c.pollution % 10 == 0 and c.pollution >= 10
     
     def passed_pollution_decrease_limit(self, c: Cell) -> bool:
-        return c.pollution % 4 == 0 and abs(c.pollution) > 0
-       
+        return c.pollution % 10 == 2 and abs(c.pollution) > 0
+    
+    # CURRENTLY NOT USING
     def control_temperature_change_by_pollution(self, cell: Cell) -> int:
-        #check if pollution is stable 0 or 2 default values
-        if cell.pollution % 10 == 0 or cell.pollution % 10 == 2:
+        #check if pollution is stable 0 or 2 default values = meaning pollution_meter = 0
+        #TODO: Check maybe the values of cell.pollution
+        #cell.pollution % 10 == 0 or cell.pollution % 10 == 2:
+        if self.pollution_factor == 0:
             return round(random.uniform(-2, 2))
         #pollution is not stable meaning pollution_meter != 0
         else:
@@ -126,6 +126,7 @@ class World:
                 return -1
             else:
                 return 1
+    
     
     def calc_next_gen_temp(self): 
         next_gen_map: List[List[Cell]] = [[None for j in range(GRID_SIZE)] for i in range(GRID_SIZE)] #create a temp map 
@@ -135,55 +136,69 @@ class World:
                 next_gen_map[cell.y][cell.x] = deepcopy(cell) 
                 
                 curr_cell_is_city: bool = cell.type == 'C'
-                    
+        
                 affected_cell = deepcopy(self.get_neighbor_cell_by_wind(cell)) if curr_cell_is_city else None
                 
+                # city cell pointing to the cell that the wind directing to
                 if affected_cell:
-                    if affected_cell.pollution == 0 or affected_cell.pollution == 2:
-                        # use random.uniform(-2, 2) on every affected_cell.tempreture and neighbor.tempreture
-                        affected_cell.tempreture += self.control_temperature_change_by_pollution(affected_cell)
-                        next_gen_map[affected_cell.y][affected_cell.x] = affected_cell
-                        
-                        neighbor = self.get_neighbor_cell_by_wind(cell)
-                        if neighbor:
-                            neighbor.tempreture += self.control_temperature_change_by_pollution(neighbor)
-                            next_gen_map[neighbor.y][neighbor.x] = neighbor
-                    else:    
-                        #Affected cell with NO RAIN is the cell city is pointing to
-                        if affected_cell and not affected_cell.rain == 0:
-                            if self.passed_pollution_limit(affected_cell):
-                                affected_cell.tempreture += 1     
-                                
-                            affected_cell.pollution += self.pollution_factor 
-                            next_gen_map[affected_cell.y][affected_cell.x] = affected_cell  
-                        
-                        elif affected_cell and affected_cell.rain > 0:
-                            if self.passed_pollution_decrease_limit(affected_cell):
-                                affected_cell.tempreture -= 1
-                            
-                            affected_cell.pollution -= self.pollution_factor
-                            next_gen_map[affected_cell.y][affected_cell.x] = affected_cell
                     
-                        
-                        # To propagate the pollution use the neighbor of cell
-                        neighbor = self.get_neighbor_cell_by_wind(cell)
-                        
-                        if neighbor and neighbor.rain == 0:
-                            neighbor.pollution += self.pollution_factor
-                            if self.passed_pollution_limit(neighbor):
-                                neighbor.tempreture += 1
-                            if neighbor.rain > 0:
-                                neighbor.pollution -= self.pollution_factor
-                            next_gen_map[neighbor.y][neighbor.x] = neighbor 
-                            
-                        elif neighbor and neighbor.rain > 0:
-                            if self.passed_pollution_decrease_limit(neighbor):
-                                neighbor.tempreture -= 1
-                                
-                            neighbor.pollution -= self.pollution_factor     
-                            next_gen_map[neighbor.y][neighbor.x] = neighbor 
+                    if self.pollution_factor > 0 and affected_cell.rain > 0:   
+                        self.choose_rand_option(affected_cell, next_gen_map)
                     
+                    if self.pollution_factor > 0: 
+                        if self.passed_pollution_limit(affected_cell):
+                            affected_cell.tempreture += 1     
+                            
+                        affected_cell.pollution += self.pollution_factor 
+                        
+                        next_gen_map[affected_cell.y][affected_cell.x] = affected_cell 
+                    
+                    #pollution is stable
+                    elif self.pollution_factor == 0: 
+                        affected_cell.tempreture = round(random.uniform(-2, 1))
+                        
+                        next_gen_map[affected_cell.y][affected_cell.x] = affected_cell 
+                     
+                    
+                           
+                # To propagate the pollution use the neighbor of cell
+                neighbor = self.get_neighbor_cell_by_wind(cell)
+                
+                if neighbor:
+                    
+                    if self.pollution_factor > 0 and neighbor.rain > 0:
+                        self.choose_rand_option(neighbor, next_gen_map)
+
+                    elif self.pollution_factor > 0:
+                        if self.passed_pollution_limit(neighbor):
+                            neighbor.tempreture += 1
+                            
+                        neighbor.pollution += self.pollution_factor
+                    
+                        next_gen_map[neighbor.y][neighbor.x] = neighbor
+                        
+                    elif self.pollution_factor == 0:
+                        neighbor.tempreture += round(random.uniform(-1, 1))
+                        
+                        next_gen_map[neighbor.y][neighbor.x] = neighbor
+                          
+                         
         self.world_map = next_gen_map
+    
+    
+    def choose_rand_option(self, cell: Cell, next_gen_map):
+        option = random.choice([1, 2])
+        if option == 1:
+            if self.passed_pollution_decrease_limit(cell):
+                            cell.tempreture -= 2            
+            cell.pollution -= self.pollution_factor
+            next_gen_map[cell.y][cell.x] = cell 
+        
+        if option == 2:
+            if self.passed_pollution_limit(cell):
+                            cell.tempreture += 1            
+            cell.pollution += self.pollution_factor
+            next_gen_map[cell.y][cell.x] = cell 
     
     
     def update_map_colors(self):
@@ -248,13 +263,13 @@ class World:
         
         self.curr_gen += 1
             
-        self.window.title(f"Cellular Automaton World Simulation: Generation {self.curr_gen}")   
+        self.window.title(f"Cellular Automaton World Simulation: Generation {self.curr_gen},  Pollution: {self.pollution_factor}")   
         self.window.after(self.refresh_rate, self.update_canvas)
             
                   
     def create_world_map(self):
         self.window = tk.Tk()
-        self.window.title(f"Cellular Automaton World Simulation: Generation {self.curr_gen}")
+        self.window.title(f"Cellular Automaton World Simulation: Generation {self.curr_gen} , Pollution: {self.pollution_factor}")
         # self.window.resizable(False, False)
 
         # Create a Canvas widget
